@@ -1,0 +1,8 @@
+requirements.txt
+.env
+config.py
+database.py
+models.py
+core.py
+main.py
+test_data.sql

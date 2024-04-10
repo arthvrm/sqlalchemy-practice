@@ -1,0 +1,12 @@
+alembic==1.13.1          # для міграцій бд
+asyncpg==0.29.0          # підкапод який буде відправляти та приймати запити з бд АСИНХРОННО (DBAPI)
+psycopg==3.1.18          # підкапод який буде відправляти та приймати запити з бд СИНХРОННО (+АСИНХРОННО) (DBAPI)
+psycopg-binary==3.1.18   # підкапод який буде відправляти та приймати запити з бд СИНХРОННО (+АСИНХРОННО) (DBAPI)
+sqlalchemy==2.0.29       # based orm
+
+fastapi==0.110.0         # СухАРІ
+pydantic==2.6.4          # BaseModel наскільки я поки знаю
+pydantic-settings==2.2.1 # "для підгрузки данних зі змінної оточення" -> .env
+uvicorn==0.29.0          # запускає сервер
+
+# asyncio                # AsynchronousInputOutput - builtin library in python for async programming
