@@ -20,15 +20,15 @@ async_engine = create_async_engine(
 
 """код нище був перенесений в core.py"""
 # with sync_engine.connect() as conn:                                 # engine.begin -> return COMMIT, .connect -> return ROLLBACK
-#     res = conn.execute(text("SELECT 1, 2, 3 union select 4, 5, 6")) # використовується функція text() для перетворення рядка в SQL-запит(?)
+#     res = conn.execute(text("SELECT 1, 2, 3 union select 4, 5, 6")) # використовується функція text() для перетворення рядка в текст оскільки обробка SQL-запитів зазвичай - обробка простого тексту
 #     print(f"{res.all()[0]=}")
 #     # conn.commit()                                                 # той самий COMMIT краще робити вручну
 
 
-# async def get_123() -> None:                                                  # async <- для створення асинхронної функції (корутина(по ідеї))
+# async def get_123() -> None:                                                  # async <- для створення асинхронної функції (корутини(по ідеї))
 #     async with async_engine.connect() as conn:                                # with...as(контекстний менеджер) <- для правильного закриття любих з'єднань/файлів
-#         res = await conn.execute(text("SELECT 1, 2, 3 union select 4, 5, 6")) # await <- для використання асинхронних функцій, оскільки 29-line: async ... as conn
+#         res = await conn.execute(text("SELECT 1, 2, 3 union select 4, 5, 6")) # await <- оскільки отримання результату виконується асинхронно в асинхронній функції
 #         print(f"{res.all()[0]=}")
 #         # conn.commit()
 
-# asyncio.run(get_123()) # запуски асинхронної функції
+# asyncio.run(get_123()) # запуск асинхронної функції(такто створюється event_loop(?) в який надходять async-функції для їхнього почергового(*) виконання)
