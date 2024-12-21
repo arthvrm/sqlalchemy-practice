@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# нижче будуть валідуватись, потім створюватись посилання для БД які будуть передаватись в алхімію
+# нижче валідуються/підставляються змінні, потім визначаються посилання для з'єднань(сесій) з БД які будуть взаємодіяти з алхімією
 class Settings(BaseSettings):
     DB_HOST: str
     DB_PORT: int
@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     
     @property # property(set_value, get_value, delete_value) <- всередині все це функції які надають доступ до __змінної через інкапсуляцію
     def DATABASE_URL_asyncpg(self) -> str:
-        # DSN
+        # DSN - назва строки нижче
         # postgresql+asyncpg://postgres:password13@localhost:5432/example_db
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
