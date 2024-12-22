@@ -6,7 +6,7 @@ metadata_obj = MetaData() # об'єкт що передається у всі т
 
 workers_table = Table(                       # створення таблиці
     "workers",                               # назва таблиці
-    metadata_obj,                            # оголошення метадати в таблиці/моделі щоб мати доступ до неї
+    metadata_obj,                            # оголошення метадати в таблиці/моделі щоб мати доступ до неї з об'єкту metadata_obj
     Column("id", Integer, primary_key=True), # створення стовпця name, type, pk
     Column("username", String),
 )

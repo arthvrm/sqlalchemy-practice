@@ -1,4 +1,4 @@
-from sqlalchemy import text, insert, values
+from sqlalchemy import text, insert
 from database import sync_engine, async_engine
 from models import metadata_obj, workers_table
 
@@ -17,14 +17,14 @@ async def get_123_async() -> None:
 
 def create_tables() -> None:
     sync_engine.echo = False             # виключення виведення логів у консоль
-    metadata_obj.drop_all(sync_engine)   # видаляє все з бд на основі підключення до бд
+    metadata_obj.drop_all(sync_engine)   # видаляє всі таблиці з бд на основі підключення до бд
     metadata_obj.create_all(sync_engine) # створює все що знаходиться в об'єкті метадати, на основі двигуна що з'єднується з бд
     sync_engine.echo = True              # включення виведення логів у консоль
 
 
 def insert_data() -> None:
     with sync_engine.connect() as conn:
-        # text(stmt = """INSERT INTO workers (username) VALUES # швидший за часом спосіб виконанню sql-script'а хоча пишеться вручну
+        # text(stmt = """INSERT INTO workers (username) VALUES # швидший за часом спосіб виконання sql-script'а хоча пишеться вручну
         #     ('Beaver'), 
         #     ('Wolf');""")
         stmt = insert(workers_table).values(                   # instrument: "query builder", довший за часом спосіб виконання sql-script'а зате пишеться синтаксисом пайтона
@@ -34,4 +34,4 @@ def insert_data() -> None:
             ]
         )
         conn.execute(stmt)
-        conn.commit()                                          # оскільки .connect() -> return ROLLBACK, треба вручну робити COMMIT щоб дані записувались в таблицю
+        conn.commit()                                          # оскільки .connect() -> return ROLLBACK, треба вручну робити COMMIT(щоб дані записались в таблицю)
