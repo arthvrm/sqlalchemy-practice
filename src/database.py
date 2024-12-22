@@ -1,6 +1,6 @@
 import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker, DeclarativeBase
 from sqlalchemy import URL, create_engine, text
 from config import settings
 
@@ -15,7 +15,7 @@ sync_engine = create_engine(
 
 async_engine = create_async_engine(
     url=settings.DATABASE_URL_asyncpg,
-    echo=False,
+    echo=True,
 )
 
 """код нище був перенесений в core.py"""
@@ -32,3 +32,11 @@ async_engine = create_async_engine(
 #         # conn.commit()
 
 # asyncio.run(get_123()) # запуск асинхронної функції(такто створюється event_loop(?) в який надходять async-функції для їхнього почергового(*) виконання)
+
+
+session_factory = sessionmaker(sync_engine)
+async_session_factory = async_sessionmaker(async_engine)
+
+
+class Base(DeclarativeBase):
+    pass
