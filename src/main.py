@@ -7,5 +7,5 @@ from queries.orm import create_tables, insert_data
 
 """це основний файл з якого будем запускати аплікуху"""
 create_tables()
-insert_data()
+# insert_data()
 # asyncio.run(insert_data())
