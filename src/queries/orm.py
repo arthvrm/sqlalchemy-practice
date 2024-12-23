@@ -41,7 +41,7 @@ class SyncORM:
             worker_beaver = session.get(WorkersOrm, worker_id)
             worker_beaver.username = new_username
             # session.expire_all()         # скасовує всі зміни наприклад - worker_beaver.username = new_username до стану заданого worker_beaver = session.get(WorkersOrm, worker_id)
-            session.refresh(worker_beaver) # рефрешить вибраний запис на той що знаходиться в даний момент в бд
+            # session.refresh(worker_beaver) # рефрешить вибраний запис на той що знаходиться в даний момент в бд
             session.commit()
 
 
@@ -53,7 +53,7 @@ class AsyncORM:
             await conn.run_sync(Base.metadata.create_all)
     
     @staticmethod
-    async def insert_data() -> None:
+    async def insert_workers() -> None:
         async with async_session_factory() as session:
             worker_beaver = WorkersOrm(username="Beaver")
             worker_wolf = WorkersOrm(username="Wolf")
@@ -63,7 +63,7 @@ class AsyncORM:
     
     @staticmethod
     async def select_workers() -> None:
-        async with session_factory() as session:
+        async with async_session_factory() as session:
             query = select(WorkersOrm)
             result = await session.execute(query)
             workers = result.scalars().all()
@@ -71,8 +71,8 @@ class AsyncORM:
 
     @staticmethod
     async def update_worker(worker_id: int = 2, new_username: str = "Squirrel") -> None:
-        async with session_factory() as session:
+        async with async_session_factory() as session:
             worker_beaver = await session.get(WorkersOrm, worker_id)
             worker_beaver.username = new_username
-            await session.refresh(worker_beaver)
+            # await session.refresh(worker_beaver)
             await session.commit()
