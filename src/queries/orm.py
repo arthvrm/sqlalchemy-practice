@@ -1,6 +1,6 @@
-from sqlalchemy import text, insert, select
+from sqlalchemy import Integer, and_, text, insert, select, func, cast
 from database import sync_engine, async_engine, session_factory, async_session_factory
-from models import WorkersOrm, Base
+from models import WorkersOrm, Base, ResumesOrm, Workload
 
 
 class SyncORM:
@@ -44,6 +44,53 @@ class SyncORM:
             # session.refresh(worker_beaver) # рефрешить вибраний запис на той що знаходиться в даний момент в бд
             session.commit()
 
+    @staticmethod
+    def insert_resumes() -> None:
+        with session_factory() as session:
+            resume_beaver_1 = ResumesOrm(
+                title="Python Junior Developer", compensation=50000, workload=Workload.fulltime, worker_id=1)
+            resume_beaver_2 = ResumesOrm(
+                title="Python Developer", compensation=150000, workload=Workload.fulltime, worker_id=1)
+            resume_squirrel_1 = ResumesOrm(
+                title="Python Data Engineer", compensation=250000, workload=Workload.parttime, worker_id=2)
+            resume_squirrel_2 = ResumesOrm(
+                title="Data Scientist", compensation=300000, workload=Workload.fulltime, worker_id=2)
+            session.add_all([resume_beaver_1, resume_beaver_2, resume_squirrel_1, resume_squirrel_2])
+            session.commit()
+
+    @staticmethod
+    def select_resumes_avg_compensation(like_language: str = "Python") -> None:
+        with session_factory() as session:
+            """
+            select workload, avg(compensation)::int as avg_compensation
+            from resumes
+            where title like '%Python%' and compensation > 40000
+            group by workload
+            having avg(compensation) > 70000
+            """
+            query = (
+                select(
+                    ResumesOrm.workload,
+                    # 1 варіант застосування cast
+                    # cast(func.avg(ResumesOrm.compensation), Integer).label("avg_compensation"),
+                    # 2 варіант застосування cast (рекомендується)
+                    func.avg(ResumesOrm.compensation).cast(Integer).label("avg_compensation"),
+                )
+                .select_from(ResumesOrm)
+                # .where() | .filter() | .filter_by() <- потребує конкретні дані: id=1, workload="" ... на відміну від where/filter
+                .filter(and_(
+                    ResumesOrm.title.contains(like_language),
+                    ResumesOrm.compensation > 40000,
+                ))
+                .group_by(ResumesOrm.workload)
+                .having(func.avg(ResumesOrm.compensation) > 70000)
+            )
+            print(query.compile(compile_kwargs={"literal_binds": True}))
+            res = session.execute(query)
+            result = res.all()
+            print(result)
+            print(result[0].avg_compensation)
+
 
 class AsyncORM:
     @staticmethod
@@ -76,3 +123,40 @@ class AsyncORM:
             worker_beaver.username = new_username
             # await session.refresh(worker_beaver)
             await session.commit()
+    
+    @staticmethod
+    async def insert_resumes() -> None:
+        async with async_session_factory() as session:
+            resume_beaver_1 = ResumesOrm(
+                title="Python Junior Developer", compensation=50000, workload=Workload.fulltime, worker_id=1)
+            resume_beaver_2 = ResumesOrm(
+                title="Python Developer", compensation=150000, workload=Workload.fulltime, worker_id=1)
+            resume_squirrel_1 = ResumesOrm(
+                title="Python Data Engineer", compensation=250000, workload=Workload.parttime, worker_id=2)
+            resume_squirrel_2 = ResumesOrm(
+                title="Data Scientist", compensation=300000, workload=Workload.fulltime, worker_id=2)
+            session.add_all([resume_beaver_1, resume_beaver_2, resume_squirrel_1, resume_squirrel_2])
+            await session.commit()
+    
+    @staticmethod
+    async def select_resumes_avg_compensation(like_language: str = "Python") -> None:
+        async with async_session_factory() as session:
+            query = (
+                select(
+                    ResumesOrm.workload,
+                    func.avg(ResumesOrm.compensation).cast(Integer).label("avg_compensation"),
+                )
+                .select_from(ResumesOrm)
+                .filter(and_(
+                    ResumesOrm.title.contains(like_language),
+                    ResumesOrm.compensation > 40000,
+                ))
+                .group_by(ResumesOrm.workload)
+                .having(func.avg(ResumesOrm.compensation) > 70000)
+            )
+            print(query.compile(compile_kwargs={"literal_binds": True}))
+            res = await session.execute(query)
+            result = res.all()
+            print(result)
+            print(result[0].avg_compensation)
+            
