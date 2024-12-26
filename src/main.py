@@ -10,32 +10,68 @@ from queries.core import SyncCore, AsyncCore
 # insert_data()
 # asyncio.run(insert_data())
 
-SyncORM.create_tables()
-# SyncCore.create_tables()
 
-SyncORM.insert_workers()
-# SyncCore.insert_workers()
+def sync_core_main() -> None:
+    SyncCore.create_tables()
 
-SyncORM.update_worker()
-# SyncCore.update_worker()
+    SyncCore.insert_workers()
 
-SyncORM.select_workers()
-# SyncCore.select_workers()
+    SyncCore.insert_resumes()
+
+    SyncCore.update_worker()
+
+    SyncCore.select_workers()
+
+    SyncCore.select_resumes_avg_compensation()
+
+
+def sync_orm_main() -> None:
+    SyncORM.create_tables()
+
+    SyncORM.insert_workers()
+
+    SyncORM.insert_resumes()
+
+    SyncORM.update_worker()
+
+    SyncORM.select_workers()
+
+    SyncORM.select_resumes_avg_compensation()
 
 
 
-# async def main():
-#     await AsyncORM.create_tables()
-#     # await AsyncCore.create_tables()
-    
-#     # await AsyncORM.insert_workers()
-#     await AsyncCore.insert_workers()
-    
-#     # await AsyncORM.update_worker()
-#     await AsyncCore.update_worker()
+async def async_core_main() -> None:
+    await AsyncCore.create_tables()
 
-#     # await AsyncORM.select_workers()
-#     await AsyncCore.select_workers()
+    await AsyncCore.insert_workers()
 
-# # Execute the main function
-# asyncio.run(main())
+    await AsyncCore.insert_resumes()
+
+    await AsyncCore.update_worker()
+
+    await AsyncCore.select_workers()
+
+    await AsyncCore.select_resumes_avg_compensation()
+
+
+async def async_orm_main() -> None:
+    await AsyncORM.create_tables()
+
+    await AsyncORM.insert_workers()
+
+    await AsyncORM.insert_resumes()
+
+    await AsyncORM.update_worker()
+
+    await AsyncORM.select_workers()
+
+    await AsyncORM.select_resumes_avg_compensation()
+
+
+
+# Executing
+# sync_core_main()
+sync_orm_main()
+
+# asyncio.run(async_core_main())
+# asyncio.run(async_orm_main())
