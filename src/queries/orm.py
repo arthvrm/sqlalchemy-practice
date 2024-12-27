@@ -1,4 +1,5 @@
 from sqlalchemy import Integer, and_, text, insert, select, func, cast
+from sqlalchemy.orm import aliased
 from database import sync_engine, async_engine, session_factory, async_session_factory
 from models import WorkersOrm, Base, ResumesOrm, Workload
 
@@ -32,7 +33,7 @@ class SyncORM:
             # worker_beaver = session.get(WorkersOrm, worker_id) # {"id": worker_id} | (worker_id, 2) <- можна декілька id прокинути(в теорії)
             query = select(WorkersOrm)                         # SELECT * FROM workers
             result = session.execute(query)
-            workers = result.scalars().all()
+            workers = result.scalars().all() # scalars() для розпакування отриманих даних(певним чином([0]гагага(lol)))
             print(f"{workers=}")
 
     @staticmethod
@@ -90,6 +91,79 @@ class SyncORM:
             result = res.all()
             print(result)
             print(result[0].avg_compensation)
+    
+    @staticmethod
+    def insert_additional_resumes() -> None:
+        with session_factory() as session:
+            workers = [
+                {"username": "Artem"},  # id 3
+                {"username": "Roman"},  # id 4
+                {"username": "Danny"},  # id 5
+            ]
+            resumes = [
+                {"title": "Python developer", "compensation": 60000, "workload": "fulltime", "worker_id": 3},
+                {"title": "Machine Learning Engineer", "compensation": 70000, "workload": "parttime", "worker_id": 3},
+                {"title": "Python Data Scientist", "compensation": 80000, "workload": "parttime", "worker_id": 4},
+                {"title": "Python Analyst", "compensation": 90000, "workload": "fulltime", "worker_id": 4},
+                {"title": "Python Junior Developer", "compensation": 100000, "workload": "fulltime", "worker_id": 5},
+            ]
+            insert_workers = insert(WorkersOrm).values(workers)
+            insert_resumes = insert(ResumesOrm).values(resumes)
+            session.execute(insert_workers)
+            session.execute(insert_resumes)
+            session.commit()
+    
+    @staticmethod
+    def join_cte_subquery_window_func() -> None:
+        with session_factory() as session:
+            """
+            with helper2 as (
+                select *, compensation-avg_workload_compensation as compensation_diff
+                from
+                (select
+                    w.id,
+                    w.username,
+                    r.compensation,
+                    r.workload,
+                    avg(r.compensation) over (partition by workload)::int as avg_workload_compensation
+                from resumes r
+                join workers w on r.worker_id = w.id) helper1
+            )
+            select * from helper2
+            order by compensation_diff desc
+            """
+            r = aliased(ResumesOrm) # aliased() щось по типу скорочень, сприйняття
+            w = aliased(WorkersOrm)
+            subq = (
+                select(
+                    r,
+                    w,
+                    func.avg(r.compensation).over(partition_by=r.workload).cast(Integer).label("avg_workload_compensation"),
+                    #                               partition_by= в ролі поділу за чимось, типо avg для кожної окремої групи значень workload
+                )
+                # .select_from(r) # краще не юзати, sql-алхімія сама краще підставить) (don't touch)
+                .join(r, r.worker_id == w.id).subquery("helper1") # subquery() в ролі назв (idk нашо)
+            )
+            cte = (
+                select(
+                    subq.c.worker_id,
+                    subq.c.username,
+                    subq.c.compensation,
+                    subq.c.workload,
+                    subq.c.avg_workload_compensation,
+                    (subq.c.compensation - subq.c.avg_workload_compensation).label("compensation_diff"),
+                )
+                .cte("helper2")
+            )
+            query = (
+                select(cte)
+                .order_by(cte.c.compensation_diff.desc())
+            )
+            # print(query.compile(compile_kwargs={"literal_binds": True}))
+            res = session.execute(query)
+            result = res.all() # res.all() виступає в ролі зчитувача результату aka компіляції вихідного результату
+            #                    по цій причині ЗАВЖДИ спочатку результат зберігаємо(result) а далі оперуєм ним як завгодно
+            print(f"{result=}")
 
 
 class AsyncORM:
@@ -159,4 +233,56 @@ class AsyncORM:
             result = res.all()
             print(result)
             print(result[0].avg_compensation)
-            
+    
+    @staticmethod
+    async def insert_additional_resumes() -> None:
+        async with async_session_factory() as session:
+            workers = [
+                {"username": "Artem"},
+                {"username": "Roman"},
+                {"username": "Danny"},
+            ]
+            resumes = [
+                {"title": "Python developer", "compensation": 60000, "workload": "fulltime", "worker_id": 3},
+                {"title": "Machine Learning Engineer", "compensation": 70000, "workload": "parttime", "worker_id": 3},
+                {"title": "Python Data Scientist", "compensation": 80000, "workload": "parttime", "worker_id": 4},
+                {"title": "Python Analyst", "compensation": 90000, "workload": "fulltime", "worker_id": 4},
+                {"title": "Python Junior Developer", "compensation": 100000, "workload": "fulltime", "worker_id": 5},
+            ]
+            insert_workers = insert(WorkersOrm).values(workers)
+            insert_resumes = insert(ResumesOrm).values(resumes)
+            await session.execute(insert_workers)
+            await session.execute(insert_resumes)
+            await session.commit()
+    
+    @staticmethod
+    async def join_cte_subquery_window_func() -> None:
+        async with async_session_factory() as session:
+            r = aliased(ResumesOrm)
+            w = aliased(WorkersOrm)
+            subq = (
+                select(
+                    r,
+                    w,
+                    func.avg(r.compensation).over(partition_by=r.workload).cast(Integer).label("avg_workload_compensation"),
+                )
+                .join(r, r.worker_id == w.id).subquery("helper1")
+            )
+            cte = (
+                select(
+                    subq.c.worker_id,
+                    subq.c.username,
+                    subq.c.compensation,
+                    subq.c.workload,
+                    subq.c.avg_workload_compensation,
+                    (subq.c.compensation - subq.c.avg_workload_compensation).label("compensation_diff"),
+                )
+                .cte("helper2")
+            )
+            query = (
+                select(cte)
+                .order_by(cte.c.compensation_diff.desc())
+            )
+            res = await session.execute(query)
+            result = res.all()
+            print(f"{result=}")
