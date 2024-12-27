@@ -64,7 +64,7 @@ async def main():
     
     elif "--orm" in sys.argv and "--async" in sys.argv:
         await async_orm_main()
-    
+
 
 if __name__ == "__main__":
     asyncio.run(main())
