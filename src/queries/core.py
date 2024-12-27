@@ -1,4 +1,5 @@
 from sqlalchemy import Integer, and_, func, text, insert, select, update
+from sqlalchemy.orm import aliased
 from database import sync_engine, async_engine
 from models import metadata_obj, workers_table, resumes_table, Workload
 
@@ -85,21 +86,78 @@ class SyncCore:
         with sync_engine.connect() as conn:
             query = (
                 select(
-                    resumes_table.c.workload,
-                    func.avg(resumes_table.c.compensation).cast(Integer).label("avg_compensation"),
+                    resumes_table.c.workload,                                                       # .c. означає звернення по column оскільки
+                    func.avg(resumes_table.c.compensation).cast(Integer).label("avg_compensation"), #   звернення до моделі не завдяки orm
+                    #   cast() означає перетворення до типу даних, в нашому випадку з float до integer
+                    #   label() відповідає за створення нового стовбця яке в нашому випадку відповідає за avg блаблаблаа
                 )
                 .select_from(resumes_table)
                 .filter(and_(
-                    resumes_table.c.title.contains(like_language),
+                    resumes_table.c.title.contains(like_language), # типо містить... contains ж...
                     resumes_table.c.compensation > 40000,
                 ))
                 .group_by(resumes_table.c.workload)
                 .having(func.avg(resumes_table.c.compensation) > 70000)
             )
-            print(query.compile(compile_kwargs={"literal_binds": True}))
+            print(query.compile(compile_kwargs={"literal_binds": True})) # compile() для підстановки значення в наш згенерований sqlalchemy-єю запит
             res = conn.execute(query)
             result = res.all()
             print(result[0].avg_compensation)
+    
+    @staticmethod
+    def insert_additional_resumes() -> None:
+        with sync_engine.connect() as conn:
+            workers = [
+                {"username": "Artem"},  # id 3
+                {"username": "Roman"},  # id 4
+                {"username": "Danny"},  # id 5
+            ]
+            resumes = [
+                {"title": "Python developer", "compensation": 60000, "workload": "fulltime", "worker_id": 3},
+                {"title": "Machine Learning Engineer", "compensation": 70000, "workload": "parttime", "worker_id": 3},
+                {"title": "Python Data Scientist", "compensation": 80000, "workload": "parttime", "worker_id": 4},
+                {"title": "Python Analyst", "compensation": 90000, "workload": "fulltime", "worker_id": 4},
+                {"title": "Python Junior Developer", "compensation": 100000, "workload": "fulltime", "worker_id": 5},
+            ]
+            insert_workers = insert(workers_table).values(workers)
+            insert_resumes = insert(resumes_table).values(resumes)
+            conn.execute(insert_workers)
+            conn.execute(insert_resumes)
+            conn.commit()
+    
+    @staticmethod
+    def join_cte_subquery_window_func() -> None:
+        with sync_engine.connect() as conn:
+            r = aliased(resumes_table) # aliased() щось по типу скорочень, сприйняття
+            w = aliased(workers_table)
+            subq = (
+                select(
+                    r,
+                    w,
+                    func.avg(r.c.compensation).over(partition_by=r.c.workload).cast(Integer).label("avg_workload_compensation"), 
+                    #                               partition_by= в ролі поділу за чимось, типо avg для кожної окремої групи значень workload
+                )
+                .join(r, r.c.worker_id == w.c.id).subquery("helper1") # subquery() в ролі назв (idk нашо)
+            )
+            cte = (
+                select(
+                    subq.c.worker_id,
+                    subq.c.username,
+                    subq.c.compensation,
+                    subq.c.workload,
+                    subq.c.avg_workload_compensation,
+                    (subq.c.compensation - subq.c.avg_workload_compensation).label("compensation_diff"),
+                )
+                .cte("helper2")
+            )
+            query = (
+                select(cte)
+                .order_by(cte.c.compensation_diff.desc())
+            )
+            res = conn.execute(query)
+            result = res.all() # res.all() виступає в ролі зчитувача результату aka компіляції вихідного результату
+            #                    по цій причині ЗАВЖДИ спочатку результат зберігаємо(result) а далі оперуєм ним як завгодно
+            print(f"{result=}")
 
 
 class AsyncCore:
@@ -173,4 +231,57 @@ class AsyncCore:
             res = await conn.execute(query)
             result = res.all()
             print(result[0].avg_compensation)
-            
+    
+    
+    @staticmethod
+    async def insert_additional_resumes() -> None:
+        async with async_engine.connect() as conn:
+            workers = [
+                {"username": "Artem"},
+                {"username": "Roman"},
+                {"username": "Danny"},
+            ]
+            resumes = [
+                {"title": "Python developer", "compensation": 60000, "workload": "fulltime", "worker_id": 3},
+                {"title": "Machine Learning Engineer", "compensation": 70000, "workload": "parttime", "worker_id": 3},
+                {"title": "Python Data Scientist", "compensation": 80000, "workload": "parttime", "worker_id": 4},
+                {"title": "Python Analyst", "compensation": 90000, "workload": "fulltime", "worker_id": 4},
+                {"title": "Python Junior Developer", "compensation": 100000, "workload": "fulltime", "worker_id": 5},
+            ]
+            insert_workers = insert(workers_table).values(workers)
+            insert_resumes = insert(resumes_table).values(resumes)
+            await conn.execute(insert_workers)
+            await conn.execute(insert_resumes)
+            await conn.commit()
+    
+    @staticmethod
+    async def join_cte_subquery_window_func() -> None:
+        async with async_engine.connect() as conn:
+            r = aliased(resumes_table)
+            w = aliased(workers_table)
+            subq = (
+                select(
+                    r,
+                    w,
+                    func.avg(r.c.compensation).over(partition_by=r.c.workload).cast(Integer).label("avg_workload_compensation"),
+                )
+                .join(r, r.c.worker_id == w.c.id).subquery("helper1")
+            )
+            cte = (
+                select(
+                    subq.c.worker_id,
+                    subq.c.username,
+                    subq.c.compensation,
+                    subq.c.workload,
+                    subq.c.avg_workload_compensation,
+                    (subq.c.compensation - subq.c.avg_workload_compensation).label("compensation_diff"),
+                )
+                .cte("helper2")
+            )
+            query = (
+                select(cte)
+                .order_by(cte.c.compensation_diff.desc())
+            )
+            res = await conn.execute(query)
+            result = res.all()
+            print(f"{result=}")
