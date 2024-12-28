@@ -45,3 +45,21 @@ class Base(DeclarativeBase):
     type_annotation_map = {
         str_255: String(255)
     }
+    
+    repr_cols_num = 3
+    repr_cols = tuple()
+    
+    def __repr__(self):
+        """Relationships не використовуються в repr() оскільки можуть призвести до неочікуваних підвантажень"""
+        cols = []
+        # [cols.append(col) for col in self.__table__.columns.keys()] # secret code here yehehehehee
+        
+        # for col in self.__table__.columns.keys():
+        #     cols.append(f"{col}={getattr(self, col)}") # getattr() - дістає значання атрибуту
+        
+        """reworked code here""" #(its very cool tho!😎)
+        for idx, col in enumerate(self.__table__.columns.keys()):
+            if col in self.repr_cols or idx < self.repr_cols_num:
+                cols.append(f"{col}={getattr(self, col)}")
+        
+        return f"<{self.__class__.__name__} {', '.join(cols)}>"
