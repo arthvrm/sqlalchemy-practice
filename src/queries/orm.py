@@ -1,5 +1,5 @@
 from sqlalchemy import Integer, and_, text, insert, select, func, cast
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload, selectinload
 from database import sync_engine, async_engine, session_factory, async_session_factory
 from models import WorkersOrm, Base, ResumesOrm, Workload
 
@@ -33,7 +33,7 @@ class SyncORM:
             # worker_beaver = session.get(WorkersOrm, worker_id) # {"id": worker_id} | (worker_id, 2) <- можна декілька id прокинути(в теорії)
             query = select(WorkersOrm)                         # SELECT * FROM workers
             result = session.execute(query)
-            workers = result.scalars().all() # scalars() для розпакування отриманих даних(певним чином([0]гагага(lol)))
+            workers = result.scalars().all() # scalars() позпаковує кортеж в моделі
             print(f"{workers=}")
 
     @staticmethod
@@ -164,6 +164,64 @@ class SyncORM:
             result = res.all() # res.all() виступає в ролі зчитувача результату aka компіляції вихідного результату
             #                    по цій причині ЗАВЖДИ спочатку результат зберігаємо(result) а далі оперуєм ним як завгодно
             print(f"{result=}")
+    
+    @staticmethod
+    def select_workers_with_lazy_relationship() -> None:
+        with session_factory() as session:
+            query = (
+                select(WorkersOrm) # завантажуємо всі записи з таблиці workers, але оскільки в нашій моделі прописаний relationship
+                # з таблицею resumes, ми можемо звертатись до резюме записів as well(вони будуть підвантажуватись окремо оскільки
+                # не при кожному запиті вони наб будуть необхідні)
+            )
+            res = session.execute(query) # тут виконується сама query(логічний один запит по типу select * from workers..)
+            result = res.scalars().all()
+            
+            worker_1_resumes = result[0].resumes # а вже на цьому місці де ми звертаємось до резюме, буде відбуватись підгрузка
+            print(worker_1_resumes)
+            
+            worker_2_resumes = result[1].resumes # на цьому теж
+
+            # висновок такий що в нас крім основного запиту буде додаватись N запитів пов'язаних з remumes. тобто "проблема N+1" !!!
+            # щоб уникнути такого переробляєм даний метод в екземпляр нижче
+            
+            print(worker_2_resumes)
+    
+    @staticmethod
+    def select_workers_with_joined_relationship() -> None:
+        with session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .options(joinedload(WorkersOrm.resumes)) # в опціях прописуєм зробити join з relationship-ом resume(прописаний в models)
+                #                                          завдяки цьому буде робитись один великий запит без подальших підгрузок
+                
+                #                                          з joinedload є проблема оскільки він підходиться для join-ів
+                #                                          m2o, o2o  ішими словами просто "TO ONE" а нам потрібен m2o, реалізація в методі нижче
+            )
+            res = session.execute(query)
+            result = res.unique().scalars().all() # unique() запит на рівні пайтона та алхімії(запит нікуди не відправляється),
+            #                                       потрібен для відсіювання тільки унікальних pk значень
+            worker_1_resumes = result[0].resumes  # вже тут не буде ніяких доп підгрузок
+            print(worker_1_resumes)
+            
+            worker_2_resumes = result[1].resumes  # і тут теж
+            print(worker_2_resumes)
+    
+    @staticmethod
+    def select_workers_with_selectin_relationship() -> None:
+        with session_factory() as session:
+            query = (
+                select(WorkersOrm)                         # відбувається 1 великий запит, перевага в тому що ми не будемо ганяти великий трафік)
+                .options(selectinload(WorkersOrm.resumes)) # selectinload - відповідає за join-и m2m, o2m  ішими словами просто "TO MANY"
+            )
+            res = session.execute(query)
+            result = res.unique().scalars().all()
+            
+            worker_1_resumes = result[0].resumes
+            print(worker_1_resumes)
+            
+            worker_2_resumes = result[1].resumes
+            print(worker_2_resumes)
+
 
 
 class AsyncORM:
@@ -286,3 +344,50 @@ class AsyncORM:
             res = await session.execute(query)
             result = res.all()
             print(f"{result=}")
+
+    @staticmethod
+    async def select_workers_with_lazy_relationship() -> None:
+        async with async_session_factory() as session:
+            query = (
+                select(WorkersOrm)
+            )
+            res = await session.execute(query)
+            result = res.scalars().all()
+            
+            # worker_1_resumes = result[0].resumes  # -> Приведе до помилки
+            # Не можна використовувати ліниву підгрузку в асинхронному варіанті!
+
+            # Помилка: sqlalchemy.exc.MissingGreenlet: greenlet_spawn has not been called; can't call await_only() here. 
+            # Was IO attempted in an unexpected place? (Background on this error at: https://sqlalche.me/e/20/xd2s)
+    
+    @staticmethod
+    async def select_workers_with_joined_relationship() -> None:
+        async with async_session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .options(joinedload(WorkersOrm.resumes))
+            )
+            res = await session.execute(query)
+            result = res.unique().scalars().all()
+            
+            worker_1_resumes = result[0].resumes
+            print(worker_1_resumes)
+            
+            worker_2_resumes = result[1].resumes
+            print(worker_2_resumes)
+    
+    @staticmethod
+    async def select_workers_with_selectin_relationship() -> None:
+        async with async_session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .options(selectinload(WorkersOrm.resumes))
+            )
+            res = await session.execute(query)
+            result = res.unique().scalars().all()
+            
+            worker_1_resumes = result[0].resumes
+            print(worker_1_resumes)
+            
+            worker_2_resumes = result[1].resumes
+            print(worker_2_resumes)
