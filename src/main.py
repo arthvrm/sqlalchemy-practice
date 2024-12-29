@@ -34,6 +34,9 @@ def sync_orm_main() -> None:
     SyncORM.select_workers_with_lazy_relationship()
     SyncORM.select_workers_with_joined_relationship()
     SyncORM.select_workers_with_selectin_relationship()
+    SyncORM.select_workers_with_condition_relationship()
+    SyncORM.select_workers_with_condition_relationship_contains_eager()
+    SyncORM.select_workers_with_condition_relationship_contains_eager_with_limit()
 
 
 async def async_core_main() -> None:
@@ -59,6 +62,9 @@ async def async_orm_main() -> None:
     await AsyncORM.select_workers_with_lazy_relationship()
     await AsyncORM.select_workers_with_joined_relationship()
     await AsyncORM.select_workers_with_selectin_relationship()
+    await AsyncORM.select_workers_with_condition_relationship()
+    await AsyncORM.select_workers_with_condition_relationship_contains_eager()
+    await AsyncORM.select_workers_with_condition_relationship_contains_eager_with_limit()
 
 
 # Executing
