@@ -66,7 +66,19 @@ class WorkersOrm(Base):
     id: Mapped[intpk]# = mapped_column(primary_key=True)
     username: Mapped[str]# = mapped_column()
     
-    resumes: Mapped[list["ResumesOrm"]] = relationship() # зв'язка таблиць
+    resumes: Mapped[list["ResumesOrm"]] = relationship( # зв'язка таблиць
+        back_populates="worker", # посилається на relationship в моделі ResumesOrm з назвою worker
+        # backref="worker",      # буде СТВОРЮВАТИ relationship в моделі ResumesOrm(якщо його там нема) з визначеною назвою(worker)
+        # backref НЕ РЕКОМЕНДУЄТЬСЯ ДО ЗАСТОСУВАННЯ, ВКАЗУЙТЕ RELATIONSHIPS ЯВНО ЧЕРЕЗ back_populates
+    )
+    
+    resumes_parttime: Mapped[list["ResumesOrm"]] = relationship(
+        back_populates="worker",
+        primaryjoin="and_(WorkersOrm.id == ResumesOrm.worker_id, ResumesOrm.workload == 'parttime')",
+        order_by="ResumesOrm.id.desc()",
+        # lazy="" # <- тут можна вибрати типи підгрузки(default: select) # краще визначати тип підгрузки в запиті
+    )
+
 
 
 class ResumesOrm(Base):
@@ -80,10 +92,18 @@ class ResumesOrm(Base):
     created_at: Mapped[created_at]# = mapped_column(server_default=text("TIMEZONE('utc', now())"))
     updated_at: Mapped[updated_at]# = mapped_column(server_default=text("TIMEZONE('utc', now())"), onupdate=datetime.datetime.utcnow)
 
-    worker: Mapped["WorkersOrm"] = relationship()        # зв'язка таблиць
-    
+    worker: Mapped["WorkersOrm"] = relationship( # зв'язка таблиць
+        back_populates="resumes", 
+    )
     # def __repr__(self): # для кожного класу моделі (логічно) можна прописувати свою логіку методу __repr__
     #     return f"Resume id={self.id}, ..."
 
     repr_cols_num = 4
     repr_cols = ("created_at", )
+    
+    __table_args__ = (                 # визначає пріколи таблиці таких як:
+        PrimaryKeyConstraint("id"),    # задає первинний ключ для таблиці, визначаючи, що стовпець id буде унікальним і
+                                       # не може містити значення NULL
+        Index("title_index", "title"), # створює індекси що прискорюють виконання пошукових запитів для вибраних стовбців таблиці
+        CheckConstraint("compensation > 0", name="check_compensation_positive"), # створює перевірку яка гарантує, що значення стовпців
+    )                                                                            # будуть відповідати обмеженням або певній логіці
