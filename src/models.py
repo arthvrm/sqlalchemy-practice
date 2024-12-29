@@ -16,7 +16,7 @@ from sqlalchemy import (
     func
 )
 from database import Base, str_255
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 
 """annotations below"""
@@ -65,6 +65,8 @@ class WorkersOrm(Base):
     
     id: Mapped[intpk]# = mapped_column(primary_key=True)
     username: Mapped[str]# = mapped_column()
+    
+    resumes: Mapped[list["ResumesOrm"]] = relationship() # зв'язка таблиць
 
 
 class ResumesOrm(Base):
@@ -77,3 +79,11 @@ class ResumesOrm(Base):
     worker_id: Mapped[int] = mapped_column(ForeignKey("workers.id", ondelete="CASCADE")) # ForeignKey(WorkersOrm.id) <- usualy not in usage
     created_at: Mapped[created_at]# = mapped_column(server_default=text("TIMEZONE('utc', now())"))
     updated_at: Mapped[updated_at]# = mapped_column(server_default=text("TIMEZONE('utc', now())"), onupdate=datetime.datetime.utcnow)
+
+    worker: Mapped["WorkersOrm"] = relationship()        # зв'язка таблиць
+    
+    # def __repr__(self): # для кожного класу моделі (логічно) можна прописувати свою логіку методу __repr__
+    #     return f"Resume id={self.id}, ..."
+
+    repr_cols_num = 4
+    repr_cols = ("created_at", )
