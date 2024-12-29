@@ -19,6 +19,7 @@ def sync_core_main() -> None:
     SyncCore.select_workers()
     SyncCore.select_resumes_avg_compensation()
     SyncCore.insert_additional_resumes()
+    SyncCore.join_cte_subquery_window_func()
 
 
 def sync_orm_main() -> None:
@@ -29,6 +30,10 @@ def sync_orm_main() -> None:
     SyncORM.select_workers()
     SyncORM.select_resumes_avg_compensation()
     SyncORM.insert_additional_resumes()
+    SyncORM.join_cte_subquery_window_func()
+    SyncORM.select_workers_with_lazy_relationship()
+    SyncORM.select_workers_with_joined_relationship()
+    SyncORM.select_workers_with_selectin_relationship()
 
 
 async def async_core_main() -> None:
@@ -39,6 +44,7 @@ async def async_core_main() -> None:
     await AsyncCore.select_workers()
     await AsyncCore.select_resumes_avg_compensation()
     await AsyncCore.insert_additional_resumes()
+    await AsyncCore.join_cte_subquery_window_func()
 
 
 async def async_orm_main() -> None:
@@ -49,6 +55,10 @@ async def async_orm_main() -> None:
     await AsyncORM.select_workers()
     await AsyncORM.select_resumes_avg_compensation()
     await AsyncORM.insert_additional_resumes()
+    await AsyncORM.join_cte_subquery_window_func()
+    await AsyncORM.select_workers_with_lazy_relationship()
+    await AsyncORM.select_workers_with_joined_relationship()
+    await AsyncORM.select_workers_with_selectin_relationship()
 
 
 # Executing
