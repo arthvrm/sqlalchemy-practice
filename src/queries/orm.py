@@ -1,5 +1,5 @@
 from sqlalchemy import Integer, and_, text, insert, select, func, cast
-from sqlalchemy.orm import aliased, joinedload, selectinload
+from sqlalchemy.orm import aliased, joinedload, selectinload, contains_eager
 from database import sync_engine, async_engine, session_factory, async_session_factory
 from models import WorkersOrm, Base, ResumesOrm, Workload
 
@@ -214,13 +214,74 @@ class SyncORM:
                 .options(selectinload(WorkersOrm.resumes)) # selectinload - відповідає за join-и m2m, o2m  ішими словами просто "TO MANY"
             )
             res = session.execute(query)
-            result = res.unique().scalars().all()
+            result = res.scalars().all()
             
             worker_1_resumes = result[0].resumes
             print(worker_1_resumes)
             
             worker_2_resumes = result[1].resumes
             print(worker_2_resumes)
+    
+    @staticmethod
+    def select_workers_with_condition_relationship() -> None:
+        with session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .options(selectinload(WorkersOrm.resumes_parttime))
+                # .options(selectinload(WorkersOrm.resumes)) # <- для підгрузки кількох relationships
+            )
+            res = session.execute(query)
+            result = res.scalars().all()
+            
+            print(result)
+    
+    @staticmethod
+    def select_workers_with_condition_relationship_contains_eager() -> None:
+        with session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .join(WorkersOrm.resumes)
+                .options(contains_eager(WorkersOrm.resumes)) # просимо contains_eager підтянути звідти(WorkersOrm.resumes) таблицю ResumesOrm
+                # щоб в результаті отримати не табличну структуру, а вкладену(вложеная) структуру
+                .filter(ResumesOrm.workload == 'parttime')
+            )
+            res = session.execute(query)
+            result = res.unique().scalars().all()
+            
+            print(result)
+    
+    @staticmethod
+    def select_workers_with_condition_relationship_contains_eager_with_limit() -> None:
+        with session_factory() as session:
+            subq = (
+                select(ResumesOrm.id.label("parttime_resume_id"))
+                .filter(ResumesOrm.worker_id == WorkersOrm.id)
+                .order_by(WorkersOrm.id.desc())
+                .limit(1) # встановлення ліміту по отриманню запитів column-у зі стовбця (aka тільки ПЕРШИЙ результат)
+                .scalar_subquery() # оскільки в нас 1 об'єкт(?) Перетворює цей запит у підзапит, який повертає єдине значення
+                .correlate(WorkersOrm) # Оголошуємо, що цей підзапит пов’язаний із зовнішньою таблицею WorkersOrm.
+                # Це дозволяє SQLAlchemy правильно побудувати запит, вказуючи, що підзапит залежить від зовнішньої таблиці.
+            )
+            
+            query = (
+                select(WorkersOrm)
+                .join(ResumesOrm, ResumesOrm.id.in_(subq))
+                # Ми з'єднуємо таблиці WorkersOrm і ResumesOrm, використовуючи підзапит subq.
+                # Логіка така:
+
+                # У підзапиті ми отримали id резюме, яке відповідає певному працівнику.
+                # Тепер фільтруємо таблицю ResumesOrm, залишаючи лише ті записи, чиї id співпадають із результатами підзапиту.
+                
+                .options(contains_eager(WorkersOrm.resumes))
+                # Вказуємо SQLAlchemy, що потрібно завантажити зв’язану інформацію (resumes) разом із працівниками.
+                # Це оптимізує виконання запиту, щоб уникнути додаткових запитів для отримання резюме.
+            )
+            
+            res = session.execute(query)
+            result = res.unique().scalars().all()
+            
+            print(result)
+    
 
 
 
@@ -384,10 +445,60 @@ class AsyncORM:
                 .options(selectinload(WorkersOrm.resumes))
             )
             res = await session.execute(query)
-            result = res.unique().scalars().all()
+            result = res.scalars().all()
             
             worker_1_resumes = result[0].resumes
             print(worker_1_resumes)
             
             worker_2_resumes = result[1].resumes
             print(worker_2_resumes)
+    
+    @staticmethod
+    async def select_workers_with_condition_relationship() -> None:
+        async with async_session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .options(selectinload(WorkersOrm.resumes_parttime))
+            )
+            res = await session.execute(query)
+            result = res.scalars().all()
+            
+            print(result)
+    
+    @staticmethod
+    async def select_workers_with_condition_relationship_contains_eager() -> None:
+        async with async_session_factory() as session:
+            # Горячо рекомендую ознакомиться: https://stackoverflow.com/a/72298903/22259413 
+            query = (
+                select(WorkersOrm)
+                .join(WorkersOrm.resumes)
+                .options(contains_eager(WorkersOrm.resumes))
+                .filter(ResumesOrm.workload == 'parttime')
+            )
+            res = await session.execute(query)
+            result = res.unique().scalars().all()
+            
+            print(result)
+    
+    @staticmethod
+    async def select_workers_with_condition_relationship_contains_eager_with_limit() -> None:
+        async with async_session_factory() as session:
+            subq = (
+                select(ResumesOrm.id.label("parttime_resume_id"))
+                .filter(ResumesOrm.worker_id == WorkersOrm.id)
+                .order_by(WorkersOrm.id.desc())
+                .limit(1)
+                .scalar_subquery()
+                .correlate(WorkersOrm)
+            )
+            
+            query = (
+                select(WorkersOrm)
+                .join(ResumesOrm, ResumesOrm.id.in_(subq))
+                .options(contains_eager(WorkersOrm.resumes))
+            )
+            
+            res = await session.execute(query)
+            result = res.unique().scalars().all()
+            
+            print(result)
