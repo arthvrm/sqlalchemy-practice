@@ -1,0 +1,47 @@
+<!DOCTYPE HTML>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.css" rel="stylesheet"
+        type="text/css"> <!-- jsoneditor.css: додає стилі для редактора -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.min.js"></script>
+    <!--jsoneditor.min.js: основний скрипт бібліотеки JSONEditor -->
+</head>
+
+<body>
+    <div style="display: flex; justify-content: center;">
+        <div id="jsoneditor" style="width: 800px; height: 100%;"></div>
+        <!-- id="jsoneditor": ідентифікатор, використаний для зв’язку з JavaScript -->
+    </div>
+    <script>
+        // create the editor
+        var container = document.getElementById("jsoneditor"); // Отримує елемент з id="jsoneditor"
+        var editor = new JSONEditor(container); // Ініціалізує об’єкт JSONEditor, який буде прив’язаний до цього контейнера
+
+        // set json
+        async function setJSON() {
+            const response = await fetch('http://localhost:8000/workers'); // Завантажує JSON-дані з API за вказаною адресою
+            const data = await response.json() // Парсить JSON/Перетворює відповідь у JavaScript-об'єкт
+            editor.set(data); // Передає дані у редактор для відображення
+        }
+
+        // get json
+        function getJSON() {
+            var json = editor.get(); // Отримує дані з редактора
+            alert(JSON.stringify(json, null, 2)); // Перетворює об'єкт json у текстовий формат JSON
+            // Перший аргумент: json — JavaScript-об'єкт, який потрібно перетворити у JSON-рядок.
+            // Другий аргумент: null — визначає, як перетворювати значення (у цьому випадку використовується стандартне 
+                //перетворення без кастомізації).
+            // Третій аргумент: 2    — задає кількість пробілів для відступів у форматованому JSON (робить його читабельним).
+        }
+
+        document.addEventListener('DOMContentLoaded', function (event) { // Подія DOMContentLoaded спрацьовує, коли весь HTML
+            // завантажено, але ще до завантаження ресурсів
+            setJSON() // Виклик setJSON, щоб завантажити початкові дані в редактор
+        });
+    </script>
+</body>
+
+</html>
