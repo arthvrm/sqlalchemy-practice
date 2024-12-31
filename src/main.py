@@ -1,6 +1,11 @@
 import asyncio
 import os
 import sys
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 # from queries.core import create_tables, insert_data, get_123_sync
 from queries.orm import SyncORM, AsyncORM
@@ -82,5 +87,27 @@ async def main():
         await async_orm_main()
 
 
+def create_fastapi_app():
+    app = FastAPI()
+    app.add_middleware(
+        CORSMiddleware,      # це шар між клієнтом і сервером, який перехоплює запити та відповіді для виконання певних дій 
+        allow_origins=["*"], # Дозволяє запити з будь-якого домену 
+    )
+
+    @app.get("/workers")
+    async def get_workers():
+        workers = await AsyncORM.convert_workers_to_dto()
+        return workers
+
+    return app
+
+
+app = create_fastapi_app() # initialisation
+
+
 if __name__ == "__main__":
     asyncio.run(main())
+    uvicorn.run(
+        app="src.main:app",
+        reload=True,
+    )
