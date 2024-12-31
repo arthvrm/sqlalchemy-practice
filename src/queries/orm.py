@@ -2,6 +2,7 @@ from sqlalchemy import Integer, and_, text, insert, select, func, cast
 from sqlalchemy.orm import aliased, joinedload, selectinload, contains_eager
 from database import sync_engine, async_engine, session_factory, async_session_factory
 from models import WorkersOrm, Base, ResumesOrm, Workload
+from schemas import WorkersRelDTO
 
 
 class SyncORM:
@@ -282,6 +283,22 @@ class SyncORM:
             
             print(result)
     
+    @staticmethod
+    def convert_workers_to_dto() -> WorkersRelDTO:
+        with session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .options(selectinload(WorkersOrm.resumes))
+                .limit(2)
+            )
+            
+            res = session.execute(query)
+            result_orm = res.scalars().all()
+            print(f"{result_orm=}")
+            result_dto = [WorkersRelDTO.model_validate(row, from_attributes=True) for row in result_orm] 
+            # рядок вище конвертує результати ORM у дані, перевірені й приведені до структури схеми WorkersRelDTO(Pydantic)
+            print(f"{result_dto=}")
+            return result_dto
 
 
 
@@ -468,7 +485,7 @@ class AsyncORM:
     @staticmethod
     async def select_workers_with_condition_relationship_contains_eager() -> None:
         async with async_session_factory() as session:
-            # Горячо рекомендую ознакомиться: https://stackoverflow.com/a/72298903/22259413 
+            # IMPORTANT SOURCE: https://stackoverflow.com/a/72298903/22259413 
             query = (
                 select(WorkersOrm)
                 .join(WorkersOrm.resumes)
@@ -502,3 +519,19 @@ class AsyncORM:
             result = res.unique().scalars().all()
             
             print(result)
+    
+    @staticmethod
+    async def convert_workers_to_dto() -> WorkersRelDTO:
+        async with async_session_factory() as session:
+            query = (
+                select(WorkersOrm)
+                .options(selectinload(WorkersOrm.resumes))
+                .limit(2)
+            )
+            
+            res = await session.execute(query)
+            result_orm = res.scalars().all()
+            print(f"{result_orm=}")
+            result_dto = [WorkersRelDTO.model_validate(row, from_attributes=True) for row in result_orm]
+            print(f"{result_dto=}")
+            return result_dto
