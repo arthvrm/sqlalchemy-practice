@@ -21,8 +21,27 @@ class ResumesDTO(ResumesAddDTO): # GET
     created_at: datetime # значення що задаються на рівні бд
     updated_at: datetime # значення що задаються на рівні бд
 
-class ResumesRelDTO(ResumesDTO):
+class ResumesRelWorkersDTO(ResumesDTO):
     worker: "WorkersDTO"
 
-class WorkersRelDTO(WorkersDTO):
+class WorkersRelResumesDTO(WorkersDTO):
     resumes: list["ResumesDTO"]
+
+class VacanciesAddDTO(BaseModel):    # GET
+    title: str
+    compensation: Optional[int]
+
+class VacanciesDTO(VacanciesAddDTO): # POST
+    id: int
+
+class VacanciesWithoutCompensationDTO(BaseModel):         # GET
+    id: int
+    title: str
+
+class ResumesRelWorkerAndVacanciesRepliedDTO(ResumesDTO):
+    worker: "WorkersDTO"
+    vacancies_replied: list["VacanciesDTO"]
+
+class ResumesRelVacanciesRepliedWithoutVacancyCompensationDTO(ResumesDTO):
+    worker: "WorkersDTO"
+    vacancies_replied: list["VacanciesWithoutCompensationDTO"]
