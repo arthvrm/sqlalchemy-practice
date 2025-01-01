@@ -80,7 +80,6 @@ class WorkersOrm(Base):
     )
 
 
-
 class ResumesOrm(Base):
     __tablename__ = "resumes"
     
@@ -104,6 +103,58 @@ class ResumesOrm(Base):
     __table_args__ = (                 # визначає пріколи таблиці таких як:
         PrimaryKeyConstraint("id"),    # задає первинний ключ для таблиці, визначаючи, що стовпець id буде унікальним і
                                        # не може містити значення NULL
-        Index("title_index", "title"), # створює індекси що прискорюють виконання пошукових запитів для вибраних стовбців таблиці
+        Index("title_index", "title"), # створює індекси що прискорюють виконання пошукових запитів для вибраних стовпців таблиці
         CheckConstraint("compensation > 0", name="check_compensation_positive"), # створює перевірку яка гарантує, що значення стовпців
     )                                                                            # будуть відповідати обмеженням або певній логіці
+    
+    vacancies_replied: Mapped[list["VacanciesOrm"]] = relationship( # бачиш тут є list, означає що це MANY, тепер шуруй до 134
+        back_populates="resumes_replied",
+        secondary="vacancies_replies", # Зв'язок через таблицю-посередник
+                                       # Вказує, що зв'язок між ResumesOrm та VacanciesOrm встановлюється через таблицю vacancies_replies
+    )
+
+    # Детальніше про M2M зв'язки
+    
+    # Аргумент secondary в SQLAlchemy використовується для визначення таблиці-посередника в багато-до-багато зв'язках між двома таблицями
+
+    # secondary вказує на ім'я таблиці або об'єкт таблиці (як правило, створеної за допомогою Table), яка використовується для реалізації
+    # зв'язку "багато-до-багато".
+    
+    # У таких випадках жодна з таблиць (моделей) не зберігає пряму інформацію про іншу.
+    # Замість цього є окрема таблиця, що зберігає ключі з обох таблиць.
+
+
+class VacanciesOrm(Base):
+    __tablename__ = "vacancies"
+    
+    id: Mapped[intpk]
+    title: Mapped[str_255]
+    compensation: Mapped[Optional[int]]
+    
+    resumes_replied: Mapped[list["ResumesOrm"]] = relationship( # тут теж list, означає що теж MANY, відповідно третя табл чисто для
+                                                                #                                                функціоналу + посередник
+        back_populates="vacancies_replied",
+        secondary="vacancies_replies", # Зв'язок через таблицю-посередник
+                                       # Вказує, що зв'язок між ResumesOrm та VacanciesOrm встановлюється через таблицю vacancies_replies
+    )
+
+
+# Таблиця-посередник                        (зазвичай це Table() aka те в чому ще прописується MetaData)
+
+# Зберігає зв'язки між vacancies та resumes
+# Використовується лише для багато-до-багато зв'язків (secondary в тому числі)
+
+# Таблиця-посередник не має власної ORM-моделі(цей випадок більше як виключення =D )
+class VacanciesRepliesOrm(Base):
+    __tablename__ = "vacancies_replies"
+    
+    resume_id: Mapped[int] = mapped_column(
+        ForeignKey("resumes.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    vacancy_id: Mapped[int] = mapped_column(
+        ForeignKey("vacancies.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    
+    cover_letter: Mapped[Optional[str]]
