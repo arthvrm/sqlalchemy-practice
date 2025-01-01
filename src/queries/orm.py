@@ -1,8 +1,8 @@
 from sqlalchemy import Integer, and_, text, insert, select, func, cast
 from sqlalchemy.orm import aliased, joinedload, selectinload, contains_eager
 from database import sync_engine, async_engine, session_factory, async_session_factory
-from models import WorkersOrm, Base, ResumesOrm, Workload
-from schemas import WorkersRelDTO
+from models import VacanciesOrm, WorkersOrm, Base, ResumesOrm, Workload
+from schemas import ResumesRelVacanciesRepliedWithoutVacancyCompensationDTO, WorkersRelResumesDTO
 
 
 class SyncORM:
@@ -258,7 +258,7 @@ class SyncORM:
                 select(ResumesOrm.id.label("parttime_resume_id"))
                 .filter(ResumesOrm.worker_id == WorkersOrm.id)
                 .order_by(WorkersOrm.id.desc())
-                .limit(1) # встановлення ліміту по отриманню запитів column-у зі стовбця (aka тільки ПЕРШИЙ результат)
+                .limit(1) # встановлення ліміту по отриманню запитів column-у зі стовпця (aka тільки ПЕРШИЙ результат)
                 .scalar_subquery() # оскільки в нас 1 об'єкт(?) Перетворює цей запит у підзапит, який повертає єдине значення
                 .correlate(WorkersOrm) # Оголошуємо, що цей підзапит пов’язаний із зовнішньою таблицею WorkersOrm.
                 # Це дозволяє SQLAlchemy правильно побудувати запит, вказуючи, що підзапит залежить від зовнішньої таблиці.
@@ -284,7 +284,7 @@ class SyncORM:
             print(result)
     
     @staticmethod
-    def convert_workers_to_dto() -> WorkersRelDTO:
+    def convert_workers_to_dto() -> WorkersRelResumesDTO:
         with session_factory() as session:
             query = (
                 select(WorkersOrm)
@@ -295,11 +295,40 @@ class SyncORM:
             res = session.execute(query)
             result_orm = res.scalars().all()
             print(f"{result_orm=}")
-            result_dto = [WorkersRelDTO.model_validate(row, from_attributes=True) for row in result_orm] 
-            # рядок вище конвертує результати ORM у дані, перевірені й приведені до структури схеми WorkersRelDTO(Pydantic)
+            result_dto = [WorkersRelResumesDTO.model_validate(row, from_attributes=True) for row in result_orm] 
+            # рядок вище конвертує результати ORM у дані, перевірені й приведені до структури схеми WorkersRelResumesDTO(Pydantic)
             print(f"{result_dto=}")
             return result_dto
 
+    @staticmethod
+    def add_vacancies_and_replies() -> None:
+        with session_factory() as session:
+            new_vacancy = VacanciesOrm(title="Python developer", compensation=100000)
+            resume_1 = session.get(ResumesOrm, 1) # old ahh підхід для запиту даних з бд але ось, такий існує...
+            resume_2 = session.get(ResumesOrm, 2)
+            resume_1.vacancies_replied.append(new_vacancy) # це вашє угар, який .append бля, хапхапхахпхапахпхап
+            resume_2.vacancies_replied.append(new_vacancy) # щось на рівні update(...).filter(...).values(...) sth likedat idk
+            # також десь при commit-і або точніше при першому append(new_vacancy) буде оголошуватись створення запису в таблицю vacancies (pog)
+            session.commit()
+    
+    @staticmethod
+    def select_resumes_with_all_relationships() -> ResumesRelVacanciesRepliedWithoutVacancyCompensationDTO:
+        with session_factory() as session:
+            query = (
+                select(ResumesOrm)
+                .options(joinedload(ResumesOrm.worker)) # .joinedload(...)) # <- possible multiple load-s
+                .options(selectinload(ResumesOrm.vacancies_replied).load_only(VacanciesOrm.title)) # <- load_only щоб не підгружати ВСІ СТОВПЦІ
+            )
+
+            res = session.execute(query)
+            result_orm = res.unique().scalars().all()
+            print(f"{result_orm=}")
+            # Створена раніше модель містила лишній стовпець compensation
+            # Оскільки він існує в схемі ResumesRelVacanciesRepliedDTO, стовпець compensation був викликаним
+            # Алхімією через ліниву підгрузку. В асинхронному варіанті це приведе до краху програми
+            result_dto = [ResumesRelVacanciesRepliedWithoutVacancyCompensationDTO.model_validate(row, from_attributes=True) for row in result_orm]
+            print(f"{result_dto=}")
+            return result_dto
 
 
 class AsyncORM:
@@ -521,7 +550,7 @@ class AsyncORM:
             print(result)
     
     @staticmethod
-    async def convert_workers_to_dto() -> WorkersRelDTO:
+    async def convert_workers_to_dto() -> WorkersRelResumesDTO:
         async with async_session_factory() as session:
             query = (
                 select(WorkersOrm)
@@ -532,6 +561,34 @@ class AsyncORM:
             res = await session.execute(query)
             result_orm = res.scalars().all()
             print(f"{result_orm=}")
-            result_dto = [WorkersRelDTO.model_validate(row, from_attributes=True) for row in result_orm]
+            result_dto = [WorkersRelResumesDTO.model_validate(row, from_attributes=True) for row in result_orm]
+            print(f"{result_dto=}")
+            return result_dto
+
+    @staticmethod
+    async def add_vacancies_and_replies() -> None:
+        async with async_session_factory() as session:
+            new_vacancy = VacanciesOrm(title="Python разработчик", compensation=100000)
+            get_resume_1 = select(ResumesOrm).options(selectinload(ResumesOrm.vacancies_replied)).filter_by(id=1)
+            get_resume_2 = select(ResumesOrm).options(selectinload(ResumesOrm.vacancies_replied)).filter_by(id=2)
+            resume_1 = (await session.execute(get_resume_1)).scalar_one()
+            resume_2 = (await session.execute(get_resume_2)).scalar_one()
+            resume_1.vacancies_replied.append(new_vacancy)
+            resume_2.vacancies_replied.append(new_vacancy)
+            await session.commit()
+    
+    @staticmethod
+    async def select_resumes_with_all_relationships() -> ResumesRelVacanciesRepliedWithoutVacancyCompensationDTO:
+        async with async_session_factory() as session:
+            query = (
+                select(ResumesOrm)
+                .options(joinedload(ResumesOrm.worker))
+                .options(selectinload(ResumesOrm.vacancies_replied).load_only(VacanciesOrm.title))
+            )
+
+            res = await session.execute(query)
+            result_orm = res.unique().scalars().all()
+            print(f"{result_orm=}")
+            result_dto = [ResumesRelVacanciesRepliedWithoutVacancyCompensationDTO.model_validate(row, from_attributes=True) for row in result_orm]
             print(f"{result_dto=}")
             return result_dto
