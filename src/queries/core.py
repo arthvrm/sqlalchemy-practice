@@ -89,7 +89,7 @@ class SyncCore:
                     resumes_table.c.workload,                                                       # .c. означає звернення по column оскільки
                     func.avg(resumes_table.c.compensation).cast(Integer).label("avg_compensation"), #   звернення до моделі не завдяки orm
                     #   cast() означає перетворення до типу даних, в нашому випадку з float до integer
-                    #   label() відповідає за створення нового стовбця яке в нашому випадку відповідає за avg блаблаблаа
+                    #   label() відповідає за створення нового стовпця яке в нашому випадку відповідає за avg блаблаблаа
                 )
                 .select_from(resumes_table)
                 .filter(and_(
