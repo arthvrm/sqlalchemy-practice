@@ -42,6 +42,8 @@ def sync_orm_main() -> None:
     SyncORM.select_workers_with_condition_relationship()
     SyncORM.select_workers_with_condition_relationship_contains_eager()
     SyncORM.select_workers_with_condition_relationship_contains_eager_with_limit()
+    SyncORM.add_vacancies_and_replies()
+    SyncORM.select_resumes_with_all_relationships()
 
 
 async def async_core_main() -> None:
@@ -70,6 +72,8 @@ async def async_orm_main() -> None:
     await AsyncORM.select_workers_with_condition_relationship()
     await AsyncORM.select_workers_with_condition_relationship_contains_eager()
     await AsyncORM.select_workers_with_condition_relationship_contains_eager_with_limit()
+    await AsyncORM.add_vacancies_and_replies()
+    await AsyncORM.select_resumes_with_all_relationships()
 
 
 # Executing
@@ -98,6 +102,11 @@ def create_fastapi_app():
     async def get_workers():
         workers = await AsyncORM.convert_workers_to_dto()
         return workers
+
+    @app.get("/resumes")
+    async def get_resumes():
+        resumes = SyncORM.select_resumes_with_all_relationships()
+        return resumes
 
     return app
 
