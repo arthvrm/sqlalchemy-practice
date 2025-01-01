@@ -22,7 +22,7 @@
 
         // set json
         async function setJSON() {
-            const response = await fetch('http://localhost:8000/workers'); // Завантажує JSON-дані з API за вказаною адресою
+            const response = await fetch('http://localhost:8000/resumes'); // Завантажує JSON-дані з API за вказаною адресою
             const data = await response.json() // Парсить JSON/Перетворює відповідь у JavaScript-об'єкт
             editor.set(data); // Передає дані у редактор для відображення
         }
