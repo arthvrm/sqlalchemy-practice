@@ -32,7 +32,7 @@ class SyncORM:
         with session_factory() as session:
             # worker_id = 1
             # worker_beaver = session.get(WorkersOrm, worker_id) # {"id": worker_id} | (worker_id, 2) <- можна декілька id прокинути(в теорії)
-            query = select(WorkersOrm)                         # SELECT * FROM workers
+            query = select(WorkersOrm)                           # SELECT * FROM workers
             result = session.execute(query)
             workers = result.scalars().all() # scalars() позпаковує кортеж в моделі
             print(f"{workers=}")
@@ -42,7 +42,7 @@ class SyncORM:
         with session_factory() as session:
             worker_beaver = session.get(WorkersOrm, worker_id)
             worker_beaver.username = new_username
-            # session.expire_all()         # скасовує всі зміни наприклад - worker_beaver.username = new_username до стану заданого worker_beaver = session.get(WorkersOrm, worker_id)
+            # session.expire_all()           # скасовує всі зміни наприклад - worker_beaver.username = new_username до стану заданого worker_beaver = session.get(WorkersOrm, worker_id)
             # session.refresh(worker_beaver) # рефрешить вибраний запис на той що знаходиться в даний момент в бд
             session.commit()
 
@@ -195,13 +195,13 @@ class SyncORM:
                 .options(joinedload(WorkersOrm.resumes)) # в опціях прописуєм зробити join з relationship-ом resume(прописаний в models)
                 #                                          завдяки цьому буде робитись один великий запит без подальших підгрузок
                 
-                #                                          з joinedload є проблема оскільки він підходиться для join-ів
-                #                                          m2o, o2o  ішими словами просто "TO ONE" а нам потрібен m2o, реалізація в методі нижче
+                #                                          з joinedload є проблема оскільки він підходить для join-ів
+                #                                          m2o, o2o  ішими словами просто "TO ONE" а нам потрібен o2m, реалізація в методі нижче
             )
             res = session.execute(query)
             result = res.unique().scalars().all() # unique() запит на рівні пайтона та алхімії(запит нікуди не відправляється),
             #                                       потрібен для відсіювання тільки унікальних pk значень
-            worker_1_resumes = result[0].resumes  # вже тут не буде ніяких доп підгрузок
+            worker_1_resumes = result[0].resumes  # вже тут не буде ніяких додаткових підгрузок
             print(worker_1_resumes)
             
             worker_2_resumes = result[1].resumes  # і тут теж
@@ -243,7 +243,7 @@ class SyncORM:
                 select(WorkersOrm)
                 .join(WorkersOrm.resumes)
                 .options(contains_eager(WorkersOrm.resumes)) # просимо contains_eager підтянути звідти(WorkersOrm.resumes) таблицю ResumesOrm
-                # щоб в результаті отримати не табличну структуру, а вкладену(вложеная) структуру
+                # щоб в результаті отримати не табличну структуру, а вкладену структуру
                 .filter(ResumesOrm.workload == 'parttime')
             )
             res = session.execute(query)
@@ -306,7 +306,7 @@ class SyncORM:
             new_vacancy = VacanciesOrm(title="Python developer", compensation=100000)
             resume_1 = session.get(ResumesOrm, 1) # old ahh підхід для запиту даних з бд але ось, такий існує...
             resume_2 = session.get(ResumesOrm, 2)
-            resume_1.vacancies_replied.append(new_vacancy) # це вашє угар, який .append бля, хапхапхахпхапахпхап
+            resume_1.vacancies_replied.append(new_vacancy) # хапхапхахпхапахпхап
             resume_2.vacancies_replied.append(new_vacancy) # щось на рівні update(...).filter(...).values(...) sth likedat idk
             # також десь при commit-і або точніше при першому append(new_vacancy) буде оголошуватись створення запису в таблицю vacancies (pog)
             session.commit()
