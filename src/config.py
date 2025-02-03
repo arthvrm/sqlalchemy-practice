@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     
     @property # property(set_value, get_value, delete_value) <- всередині все це функції які надають доступ до __змінної через інкапсуляцію
     def DATABASE_URL_asyncpg(self) -> str:
-        # DSN - назва строки нижче
+        # DSN - назва рядка нижче
         # postgresql+asyncpg://postgres:password13@localhost:5432/example_db
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
