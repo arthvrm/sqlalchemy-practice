@@ -116,7 +116,8 @@ app = create_fastapi_app() # initialisation
 
 if __name__ == "__main__":
     asyncio.run(main())
-    uvicorn.run(
-        app="src.main:app",
-        reload=True,
-    )
+    if "--webserver" in sys.argv:
+        uvicorn.run(
+            app="src.main:app",
+            reload=True,
+        )
